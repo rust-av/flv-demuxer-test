@@ -1,7 +1,7 @@
 use av::format::demuxer::demux::{Demuxer,DemuxerBuilder,DemuxerDescription,PROBE_DATA,Score};
-use av::format::demuxer::context::{DemuxerContext};
+use av::format::demuxer::context::DemuxerContext;
 use av::data::packet::Packet;
-use std::io::Error;
+use std::io::{BufRead,Error};
 use nom::{be_u8, be_u32, HexDisplay, IResult};
 
 /*
@@ -45,10 +45,10 @@ struct FlvDemuxerBuilder;
 
 impl Demuxer for FlvDemuxer {
   fn open(&mut self) { () }
-  fn read_headers(&mut self, context: &mut DemuxerContext) -> Result<(), Error> {
+  fn read_headers(&mut self, context: &Box<BufRead>) -> Result<(), Error> {
     Ok(())
   }
-  fn read_packet(&mut self, context: &mut DemuxerContext) -> Result<Packet, Error> {
+  fn read_packet(&mut self, context:  &Box<BufRead>) -> Result<Packet, Error> {
     unimplemented!()
   }
 }
