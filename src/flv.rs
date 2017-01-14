@@ -1,4 +1,4 @@
-use av::format::demuxer::demux::{Demuxer,DemuxerBuilder,DemuxerDescription,PROBE_DATA,Score};
+use av::format::demuxer::demux::{Demuxer,DemuxerBuilder,DemuxerDescription,Score};
 use av::format::demuxer::context::DemuxerContext;
 use av::data::packet::Packet;
 use std::io::{BufRead,Error};
@@ -110,16 +110,18 @@ named!(pub flv_header<FlvHeader>,
 #[cfg(test)]
 mod test {
   use super::{FlvDemuxer,FlvDemuxerBuilder};
+  use av::format::demuxer::context::DemuxerContext;
   use av::format::demuxer::demux::{DemuxerBuilder,probe,PROBE_DATA,Score};
+  use std::io::Cursor;
 
   const DEMUXER_BUILDERS: [&'static DemuxerBuilder; 1] = [&FlvDemuxerBuilder {}];
   const zelda : &'static [u8] = include_bytes!("../assets/zelda.flv");
 
   #[test]
   fn probe_demuxer() {
-    match probe(&DEMUXER_BUILDERS, zelda) {
-      Some(_) => panic!("some"),
-      None => panic!("none"),
-    }
+    let builder = probe(&DEMUXER_BUILDERS, zelda).expect("should have found a builder");
+    let demuxer = builder.alloc();
+
+    let context = DemuxerContext::new(demuxer, Box::new(Cursor::new(zelda)));
   }
 }
