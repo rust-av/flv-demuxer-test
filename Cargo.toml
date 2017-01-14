@@ -4,3 +4,5 @@ version = "0.1.0"
 authors = ["Geoffroy Couprie <geo.couprie@gmail.com>"]
 
 [dependencies]
+av = { git = "https://github.com/rust-av/rust-av.git", branch = "demuxer" }
+nom = "*"
