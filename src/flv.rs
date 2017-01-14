@@ -1,8 +1,10 @@
-use format::demuxer::demux::{Score,DemuxerDescription};
+use av::format::demuxer::demux::{Demuxer,DemuxerBuilder,DemuxerDescription,PROBE_DATA,Score};
+use av::format::demuxer::context::{DemuxerContext};
+use av::data::packet::Packet;
 use std::io::Error;
 use nom::{be_u8, be_u32, HexDisplay, IResult};
 
-
+/*
 module! {
   (Flv) {
     open(self) => { () }
@@ -37,6 +39,45 @@ module! {
     }
   }
 }
+*/
+struct FlvDemuxer;
+struct FlvDemuxerBuilder;
+
+impl Demuxer for FlvDemuxer {
+  fn open(&mut self) { () }
+  fn read_headers(&mut self, context: &mut DemuxerContext) -> Result<(), Error> {
+    Ok(())
+  }
+  fn read_packet(&mut self, context: &mut DemuxerContext) -> Result<Packet, Error> {
+    unimplemented!()
+  }
+}
+
+impl DemuxerBuilder for FlvDemuxerBuilder {
+  fn describe(&self) -> &'static DemuxerDescription {
+    const D: &'static DemuxerDescription = &DemuxerDescription {
+      name: "FLV",
+      description: "flash video demuxer",
+      extensions: &["flv"],
+      mime: &["video/x-flv"],
+    };
+
+    D
+  }
+  fn probe(&self, data: &[u8]) -> u8 {
+    if &data[..3] == b"FLV" {
+    //println!("got data:\n{}", &data[..4096].to_hex(16));
+    //if let IResult::Done(_,header) = flv_header(data) {
+    //  println!("got header: {:?}", header);
+    Score::MAX as u8
+    } else {
+      0
+    }
+  }
+  fn alloc(&self) -> Box<Demuxer> {
+    Box::new(FlvDemuxer { })
+  }
+}
 
 #[derive(Debug,PartialEq,Eq)]
 pub struct FlvHeader {
@@ -69,7 +110,7 @@ named!(pub flv_header<FlvHeader>,
 #[cfg(test)]
 mod test {
   use super::{FlvDemuxer,FlvDemuxerBuilder};
-  use format::demuxer::demux::{probe,PROBE_DATA,DemuxerBuilder};
+  use av::format::demuxer::demux::{DemuxerBuilder,probe,PROBE_DATA,Score};
 
   const DEMUXER_BUILDERS: [&'static DemuxerBuilder; 1] = [&FlvDemuxerBuilder {}];
   const zelda : &'static [u8] = include_bytes!("../assets/zelda.flv");
