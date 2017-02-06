@@ -4,7 +4,7 @@ use av::data::packet::Packet;
 use av::buffer::Buffered;
 use std::io::{BufRead,Error,ErrorKind,SeekFrom};
 use nom::{be_u8, be_u32, HexDisplay, IResult, Offset};
-use flavors::parser::{Header,header};
+use flavors::parser::{Header,header,tag_header};
 
 /*
 module! {
@@ -69,8 +69,31 @@ impl Demuxer for FlvDemuxer {
       e => Err(Error::new(ErrorKind::InvalidData, format!("err: {:?}", e))),
     }
   }
-  fn read_packet(&mut self, context:  &Box<Buffered>) -> Result<(SeekFrom,Packet), Error> {
-    unimplemented!()
+  fn read_packet(&mut self, context: &Box<Buffered>) -> Result<(SeekFrom,Packet), Error> {
+    let header = &context.data()[..15];
+
+    let r = be_u32(&header[..4]);
+    if let IResult::Done(_i, _o) = r {
+      println!("previous tag size: {}", _o);
+    }
+
+    let r = tag_header(&header[4..]);
+    match r {
+      IResult::Error(e) => {
+        return Err(Error::new(ErrorKind::InvalidData, format!("err: {:?}", e)));
+      },
+      IResult::Incomplete(i) => {
+        return Err(Error::new(ErrorKind::InvalidData, format!("incomplete: {:?}", i)));
+      },
+      _ => {}
+    }
+
+    if let IResult::Done(_remaining, header) = r {
+      println!("tag_header: type={},\tsize={},\ttimestamp:{},\tstream_id: {}",
+           header.tag_type as usize, header.data_size, header.timestamp, header.stream_id);
+    }
+
+    return Err(Error::new(ErrorKind::InvalidData, "blah"));
   }
 }
 
@@ -109,7 +132,7 @@ mod test {
   use av::format::demuxer::context::DemuxerContext;
   use av::format::demuxer::demux::{DemuxerBuilder,probe,PROBE_DATA,Score};
   use av::buffer::AccReader;
-  use std::io::Cursor;
+  use std::io::{BufRead,Cursor};
 
   const DEMUXER_BUILDERS: [&'static DemuxerBuilder; 1] = [&FlvDemuxerBuilder {}];
   const zelda : &'static [u8] = include_bytes!("../assets/zelda.flv");
@@ -119,11 +142,16 @@ mod test {
     let builder = probe(&DEMUXER_BUILDERS, zelda).expect("should have found a builder");
     let demuxer = builder.alloc();
 
-    let mut context = DemuxerContext::new(demuxer, Box::new(AccReader::new(zelda)));
+    let mut reader = AccReader::with_capacity(4096, Cursor::new(zelda));
+    reader.fill_buf();
+    let mut context = DemuxerContext::new(demuxer, Box::new(reader));
 
     let headers = context.read_headers();
     println!("headers result: {:?}", headers);
     let packet = context.read_packet();
+    println!("packet result: {:?}", packet);
+
+    panic!();
 
   }
 }
