@@ -5,5 +5,7 @@ authors = ["Geoffroy Couprie <geo.couprie@gmail.com>"]
 
 [dependencies]
 av = { git = "https://github.com/rust-av/rust-av.git", branch = "demuxer" }
+#av = { path = "../rust-av/" }
+flavors = { git = "https://github.com/Geal/flavors" }
 nom = "*"
 interpolate_idents = "0.1.3"

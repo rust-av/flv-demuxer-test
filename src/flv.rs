@@ -1,8 +1,10 @@
 use av::format::demuxer::demux::{Demuxer,DemuxerBuilder,DemuxerDescription,Score};
 use av::format::demuxer::context::DemuxerContext;
 use av::data::packet::Packet;
-use std::io::{BufRead,Error};
-use nom::{be_u8, be_u32, HexDisplay, IResult};
+use av::buffer::Buffered;
+use std::io::{BufRead,Error,ErrorKind,SeekFrom};
+use nom::{be_u8, be_u32, HexDisplay, IResult, Offset};
+use flavors::parser::{Header,header};
 
 /*
 module! {
@@ -40,15 +42,34 @@ module! {
   }
 }
 */
-struct FlvDemuxer;
+struct FlvDemuxer {
+  has_audio: bool,
+  has_video: bool,
+}
 struct FlvDemuxerBuilder;
+
+impl FlvDemuxer {
+  pub fn new() -> FlvDemuxer {
+    FlvDemuxer {
+      has_audio: false,
+      has_video: false,
+    }
+  }
+}
 
 impl Demuxer for FlvDemuxer {
   fn open(&mut self) { () }
-  fn read_headers(&mut self, context: &Box<BufRead>) -> Result<(), Error> {
-    Ok(())
+  fn read_headers(&mut self, context: &Box<Buffered>) -> Result<SeekFrom, Error> {
+    match header(context.data()) {
+      IResult::Done(i, header) => {
+        self.has_audio = header.audio;
+        self.has_video = header.video;
+        Ok(SeekFrom::Start(header.offset as u64))
+      },
+      e => Err(Error::new(ErrorKind::InvalidData, format!("err: {:?}", e))),
+    }
   }
-  fn read_packet(&mut self, context:  &Box<BufRead>) -> Result<Packet, Error> {
+  fn read_packet(&mut self, context:  &Box<Buffered>) -> Result<(SeekFrom,Packet), Error> {
     unimplemented!()
   }
 }
@@ -75,34 +96,9 @@ impl DemuxerBuilder for FlvDemuxerBuilder {
     }
   }
   fn alloc(&self) -> Box<Demuxer> {
-    Box::new(FlvDemuxer { })
+    Box::new(FlvDemuxer::new())
   }
 }
-
-#[derive(Debug,PartialEq,Eq)]
-pub struct FlvHeader {
-  pub version: u8,
-  pub audio: bool,
-  pub video: bool,
-  pub offset: u32,
-}
-
-named!(pub flv_header<FlvHeader>,
-  chain!(
-             tag!("FLV") ~
-    version: be_u8       ~
-    flags:   be_u8       ~
-    offset:  be_u32      ,
-    || {
-      FlvHeader {
-        version: version,
-        audio:   flags & 4 == 4,
-        video:   flags & 1 == 1,
-        offset:  offset
-      }
-    }
-  )
-);
 
 // FIXME: not considered as const when imported?
 //pub const PROBE_DATA: usize = 4 * 1024;
@@ -112,6 +108,7 @@ mod test {
   use super::{FlvDemuxer,FlvDemuxerBuilder};
   use av::format::demuxer::context::DemuxerContext;
   use av::format::demuxer::demux::{DemuxerBuilder,probe,PROBE_DATA,Score};
+  use av::buffer::AccReader;
   use std::io::Cursor;
 
   const DEMUXER_BUILDERS: [&'static DemuxerBuilder; 1] = [&FlvDemuxerBuilder {}];
@@ -122,6 +119,11 @@ mod test {
     let builder = probe(&DEMUXER_BUILDERS, zelda).expect("should have found a builder");
     let demuxer = builder.alloc();
 
-    let context = DemuxerContext::new(demuxer, Box::new(Cursor::new(zelda)));
+    let mut context = DemuxerContext::new(demuxer, Box::new(AccReader::new(zelda)));
+
+    let headers = context.read_headers();
+    println!("headers result: {:?}", headers);
+    let packet = context.read_packet();
+
   }
 }

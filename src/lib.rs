@@ -3,6 +3,7 @@
 
 #[macro_use] extern crate av;
 #[macro_use] extern crate nom;
+extern crate flavors;
 
 mod flv;
 
